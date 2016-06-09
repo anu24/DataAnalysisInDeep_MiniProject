@@ -1,0 +1,108 @@
+---
+title: "Clustering Wine Dataset"
+author: "Anushree Shivarudrappa"
+date: "June 9, 2016"
+output: pdf_document
+---
+
+## This mini-project is based on the K-Means exercise from 'R in Action'
+Go here for the original blog post and solutions
+http://www.r-bloggers.com/k-means-clustering-from-r-in-action/
+
+## 1. Exercise 0: Install these packages if you don't have them already
+
+**install.packages(c("cluster", "rattle","NbClust"))**
+```{r, warning=FALSE, message=FALSE}
+library(cluster)
+library(rattle)
+library(NbClust)
+```
+  
+**Now load the data and look at the first few rows**
+```{r}
+data(wine, package="rattle")
+head(wine)
+```
+## 2. Exercise 1: Remove the first column from the data and scale it using the scale() function
+```{r}
+df_wine <- scale(wine[-1])
+summary(df_wine)
+```
+  
+**Now we'd like to cluster the data using K-Means.**  
+**How do we decide how many clusters to use if you don't know that already?**  
+**We'll try two methods.** 
+
+##Method 1:
+A plot of the total within-groups sums of squares against the number of clusters in a K-means solution can be helpful. A bend in the graph can suggest the appropriate number of clusters. 
+
+```{r}
+wssplot <- function(data, nc=15, seed=1234){
+	              wss <- (nrow(data)-1)*sum(apply(data,2,var))
+               	      for (i in 2:nc){
+		        set.seed(seed)
+	                wss[i] <- sum(kmeans(data, centers=i)$withinss)}
+	                
+		      plot(1:nc, wss, type="b", xlab="Number of Clusters",
+	                        ylab="Within groups sum of squares")
+	   }
+
+wssplot(df_wine)
+```
+
+## 3. Exercise 2:  
+**How many clusters does this method suggest?**  
+Method suggest cluster count as 3 i.e k=3.  
+  
+**Why does this method work? What's the intuition behind it?**  
+Sum of square error (SSE) plot is used to determine appropriate k value. Plot indicates that there is distinct drop when moving from 1 to 3 clusters. After 3 we can observe decrease in drop off, this suggest a 3-cluster as solution. If we look at the original data it also contains 3 classes.  
+
+##Method 2:
+Use the NbClust library, which runs many experiments and gives a distribution of potential number of clusters.
+
+```{r, fig.show='hide', results='hide', message=FALSE, warning=FALSE}
+library(NbClust)
+set.seed(1234)
+nc <- NbClust(df_wine, min.nc=2, max.nc=15, method="kmeans")
+```
+```{r, fig.width=9}
+barplot(table(nc$Best.n[1,]),
+	          xlab="Numer of Clusters", ylab="Number of Criteria",
+		            main="Number of Clusters Chosen by 26 Criteria")
+
+```
+  
+## 4. Exercise 3: How many clusters does this method suggest?  
+By Looking into graph we can say best number of cluster is 3 i.e k=3          
+
+## 5. Exercise 4: Once you've picked the number of clusters, run k-means using this number of clusters. Output the result of calling kmeans() into a variable fit.km
+
+```{r}
+fit.km <- kmeans( df_wine, 3 )
+str(fit.km)
+```
+Now we want to evaluate how well this clustering does.
+
+## 6. Exercise 5: 
+**Using the table() function, show how the clusters in fit.km$clusters
+compares to the actual wine types in wine$Type. Would you consider this a good clustering?**
+```{r}
+table(fit.km$cluster)
+table(wine$Type)
+table_clust_wine <- table(wine$Type, fit.km$cluster)
+table_clust_wine 
+```
+Its a confusion matrix. To find "fit.km" is a good cluster or not, using an adjusted Rank index provided by the flexclust package.
+```{r, warning=FALSE, message=FALSE}
+library(flexclust)
+randIndex(table_clust_wine)
+```
+The adjusted Rand index provides a measure of the agreement between two partitions, adjusted for chance. It ranges from -1 (no agreement) to 1 (perfect agreement). Agreement between the wine varietal type and the cluster solution is 0.9. So its a good clustering
+
+## 7. Exercise 6:
+**Visualize these clusters using  function clusplot() from the cluster library**
+**Would you consider this a good clustering?**
+```{r}
+clusplot( df_wine, fit.km$cluster, color = T, shade = T, 
+          main='2D representation of the Cluster solution')
+```
